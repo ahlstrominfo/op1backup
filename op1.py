@@ -4,35 +4,13 @@ import platform, os, shutil, syslog, sys
 
 from time import sleep
 from Adafruit_CharLCDPlate import Adafruit_CharLCDPlate
+from LCDMenu import LCDMenu
 from subprocess import *
 from time import sleep, strftime
 from datetime import datetime
 
 root = '/op1-backup/'
 
-BACKUP_ALBUM_A = "backup album a"
-BACKUP_ALBUM_B = "backup album b"
-BACKUP_ALBUMS = "backup albums"
-BACKUP_TRACKS = "backup tracks"
-SHOW_IP = "   show ip    "
-RECOVER_TRACKS = "recover tracks"
-
-menu = [	
-	# "B albums",
-	# "B everything",
-	BACKUP_ALBUM_A,
-	BACKUP_ALBUM_B,
-	BACKUP_ALBUMS,
-	BACKUP_TRACKS,
-#	RECOVER_TRACKS,
-	# "B All Synths",
-	# "B All Synths",
-	SHOW_IP
-];
-
-
-
-menupos = 0;
 lcd = Adafruit_CharLCDPlate()
 btn = (lcd.LEFT, lcd.UP, lcd.DOWN, lcd.RIGHT, lcd.SELECT)
 prev = -1
@@ -40,6 +18,9 @@ buttonsactive = True
 is_op1_available = False
 backup_position = ""
 
+def logger(msg):
+	syslog.syslog(msg)
+	print(msg)
 
 def run_cmd(cmd):
 		p = Popen(cmd, shell=True, stdout=PIPE)
@@ -47,48 +28,12 @@ def run_cmd(cmd):
 		return output
 
 def menulcd():
-	global menupos
-
-	lenmenu = len(menu) - 1
-	if (menupos > lenmenu):
-		menupos = 0;
-	if (menupos < 0):
-		menupos = lenmenu
-
-	clearprint('OP1 Backup 2000\n<%s>' % ( menu[menupos] ))
+	clearprint(LCDMenu.getPosition())
 
 def clearprint(message):
 	global lcd
 	lcd.clear()
 	lcd.message(message)
-
-def run_select():
-	global menupos, menu
-
-	current_menu = menu[menupos]
-
-	if (current_menu == SHOW_IP):
-		freezemenu()
-		showip()
-
-	if (current_menu == BACKUP_ALBUM_A):
-		freezemenu()
-		copy_album_a()
-
-	if (current_menu == BACKUP_ALBUM_B):
-		freezemenu()
-		copy_album_b()
-
-	if (current_menu == BACKUP_ALBUMS):
-		freezemenu();
-		copy_album()
-	
-	if (current_menu == BACKUP_TRACKS):
-		freezemenu();
-		copy_tracks()
-
-	if (current_menu == RECOVER_TRACKS):
-		recover_tracks()
 
 	
 def getip():
@@ -134,49 +79,79 @@ def copy_single(side):
 	global backup_position
 
 	if (os.path.isdir(backup_position) == False):
+		logger("Create: %s" % backup_position)
 		os.mkdir(backup_position)
 
 	if (os.path.isdir(backup_position + "/album") == False):
+		logger("Create album: %s/album" % backup_position)
 		os.mkdir(backup_position + "/album")
 
+	logger('Copy file /media/usb0/album/side_%s.aif ' % side)	
 	shutil.copyfile('/media/usb0/album/side_'+side+'.aif', backup_position + '/album/side_'+side+'.aif')
 
 
 def copy_album_a():
+	logger("Begin copy album A")
 	clearprint("Copying album A\nto raspberry")
 	copy_single("a")
 	lcd.backlight(lcd.GREEN)
+	logger("End copy album A")
 	clearprint("Copy complete!")
 	sleep(5)
 	resetmenu();	
 
 def copy_album_b():
+	logger("Begin copy album B")
 	clearprint("Copying album B\nto raspberry")
 	copy_single("b")
 	lcd.backlight(lcd.GREEN)
+	logger("End copy album B")
 	clearprint("Copy complete!")
 	sleep(5)
 	resetmenu();
 
 def copy_album():
+	logger("Start copy albums")
 	clearprint("Copying album A\nto raspberry")
 	copy_single("a")	
 	clearprint("Copying album B\nto raspberry")
 	copy_single("b")
 	lcd.backlight(lcd.GREEN)
 	clearprint("Copy complete!\n")
+	logger("End copy albums")
 	sleep(5)
 	resetmenu();	
 
-def recover_tracks():
+def upload_track():
+	parent = LCDMenu.lcdMenu.currentItem();
+	
+	clearprint("Upload tracks\nto OP1")
+	shutil.copyfile(parent.args[0] + "/track_1.aif", '/media/usb0/tape/track_1.aif')
+	clearprint("Upload tracks\nto OP1 1/4")
+	shutil.copyfile(parent.args[0] + "/track_2.aif", '/media/usb0/tape/track_2.aif')
+	clearprint("Upload tracks\nto OP1 2/4")
+	shutil.copyfile(parent.args[0] + "/track_3.aif", '/media/usb0/tape/track_3.aif')
+	clearprint("Upload tracks\nto OP1 3/4")
+	shutil.copyfile(parent.args[0] + "/track_4.aif", '/media/usb0/tape/track_4.aif')
+	clearprint("Upload tracks\nto OP1 4/4")
+
+	lcd.backlight(lcd.GREEN)
+	clearprint("Copy complete!")
+	sleep(5)
+	resetmenu();	
+
+def upload_tracks():
+	parent = LCDMenu.lcdMenu.currentItem();
+	parent.children = []
 	tape_dirs = []
-	for dirs in os.listdir(root):
+	for dirs in sorted(os.listdir(root)):
 		backup_path = os.path.join(root, dirs)
 		if (os.path.exists(backup_path+'/tape')):
-			tape_dirs.append(dirs);
-	
-	print(tape_dirs)
+			parent.addItem(LCDMenu(dirs, parent, upload_track, [backup_path+'/tape']))
 
+	parent.position = len(parent.children) - 1
+	LCDMenu.lcdMenu = parent;
+	menulcd()
 
 def freezemenu():
 	global buttonsactive
@@ -192,9 +167,18 @@ def resetmenu(runmenu = True):
 
 def init():
 	lcd.backlight(lcd.TEAL)
-	clearprint("OP1 Backup 2000!!!")
+	clearprint("OP1 Backup 2000!!!\nVersion Two")
 	sleep(2)
 	menulcd()
+
+
+lcdMenu = LCDMenu('OP1 Backup 2000!!!');
+lcdMenu.addItem(LCDMenu("backup album a", lcdMenu, copy_album_a))
+lcdMenu.addItem(LCDMenu("backup album b", lcdMenu, copy_album_b))
+lcdMenu.addItem(LCDMenu("backup albums", lcdMenu, copy_album))
+lcdMenu.addItem(LCDMenu("backup tracks", lcdMenu, copy_tracks))
+lcdMenu.addItem(LCDMenu("upload tracks", lcdMenu, upload_tracks))
+lcdMenu.addItem(LCDMenu("show ip", lcdMenu, showip))
 
 init()
 
@@ -209,7 +193,6 @@ while True:
 	if (op1_is_avaliable() and is_op1_available == False):
 		is_op1_available = True
 		backup_position = get_next_backup()
-		print backup_position
 		menulcd()
 
 	if (buttonsactive == False): # if active then menusystem is freezed
@@ -223,15 +206,19 @@ while True:
 			if (prev == b):
 				break
 
+			if b == lcd.UP:
+				LCDMenu.up()
+				menulcd()
+
 			if b == lcd.RIGHT:
-				menupos += 1
+				LCDMenu.next()
 				menulcd()
 
 			if b == lcd.LEFT:
-				menupos -= 1
+				LCDMenu.prev()
 				menulcd()
 
 			if b == lcd.SELECT:
-				run_select()
+				LCDMenu.runFunc()
 
 			prev = b
