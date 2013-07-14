@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import platform, os, shutil, syslog, sys
+import platform, os, os.path, shutil, syslog, sys
 
 from time import sleep
 from Adafruit_CharLCDPlate import Adafruit_CharLCDPlate
@@ -10,12 +10,13 @@ from time import sleep, strftime
 from datetime import datetime
 
 root = '/op1-backup/'
+op1 = '/media/usb0'
 
 lcd = Adafruit_CharLCDPlate()
 btn = (lcd.LEFT, lcd.UP, lcd.DOWN, lcd.RIGHT, lcd.SELECT)
 prev = -1
 buttonsactive = True
-is_op1_available = False
+is_op1_available = None
 backup_position = ""
 
 def logger(msg):
@@ -36,17 +37,22 @@ def clearprint(message):
 	lcd.message(message)
 
 	
-def getip():
-	cmd = "ip addr show eth0 | grep inet | awk '{print $2}' | cut -d/ -f1"
-	ipaddr = run_cmd(cmd)
-	return ipaddr	
+def getip(eth = True):
+	if (eth):
+		cmd = "ip addr show eth0 | grep inet | awk '{print $2}' | cut -d/ -f1"
+		eth_ipaddr = run_cmd(cmd)
+		return eth_ipaddr
+
+	cmd = "ip addr show wlan0 | grep inet | awk '{print $2}' | cut -d/ -f1"
+	wlan_ipaddr = run_cmd(cmd)
+	return wlan_ipaddr
 
 def showip():
 	global buttonsactive
-
-	clearprint('IP %s' % ( getip() ) )
+	str = "eth:" + getip() + "\nwifi:" + getip(False)
+	clearprint(str)
 	sleep(3)
-	resetmenu(False);
+	resetmenu();
 
 def op1_is_avaliable():
 	return os.path.exists('/media/usb0/album/')
@@ -153,6 +159,28 @@ def upload_tracks():
 	LCDMenu.lcdMenu = parent;
 	menulcd()
 
+def backupDrumPresets():
+	global op1
+	for root, dirs, files in os.walk(op1+'/drum/'):
+		#files = [os.path.join(root, f) for f in files]
+		print "root"
+		print(root)
+		#print "dirs"
+		#print(dirs)
+		#print "\n"
+		print(files)
+		#for fname in files:
+			#print fname
+
+def setLCDMenu(newLCDMenu):
+	if LCDMenu.lcdMenu is not newLCDMenu:
+		LCDMenu.lcdMenu = newLCDMenu
+		menulcd()
+
+def loadChildMenu():
+	LCDMenu.lcdMenu = LCDMenu.lcdMenu.currentItem();
+	menulcd()	
+
 def freezemenu():
 	global buttonsactive
 	buttonsactive = False
@@ -166,34 +194,53 @@ def resetmenu(runmenu = True):
 		menulcd()
 
 def init():
+	global is_op1_available
 	lcd.backlight(lcd.TEAL)
-	clearprint("OP1 Backup 2000!!!\nVersion Two")
+	clearprint("OP1 Backup 2000!!!\nVersion Three")
 	sleep(2)
-	menulcd()
+	if op1_is_avaliable():
+		is_op1_available = True
+		setLCDMenu(lcdOnlineMenu)
+	else: 
+		is_op1_available = False
+		setLCDMenu(lcdOfflineMenu)
 
 
-lcdMenu = LCDMenu('OP1 Backup 2000!!!');
-lcdMenu.addItem(LCDMenu("backup album a", lcdMenu, copy_album_a))
-lcdMenu.addItem(LCDMenu("backup album b", lcdMenu, copy_album_b))
-lcdMenu.addItem(LCDMenu("backup albums", lcdMenu, copy_album))
-lcdMenu.addItem(LCDMenu("backup tracks", lcdMenu, copy_tracks))
-lcdMenu.addItem(LCDMenu("upload tracks", lcdMenu, upload_tracks))
-lcdMenu.addItem(LCDMenu("show ip", lcdMenu, showip))
+lcdOnlineMenu = LCDMenu('OP1 Backup 2000!!!')
+
+lcdAlbum = LCDMenu("album", lcdOnlineMenu, loadChildMenu)
+lcdAlbum.addItem(LCDMenu("backup album a", lcdAlbum, copy_album_a))
+lcdAlbum.addItem(LCDMenu("backup album b", lcdAlbum, copy_album_b))
+lcdAlbum.addItem(LCDMenu("backup albums", lcdAlbum, copy_album))
+lcdOnlineMenu.addItem(lcdAlbum)
+
+lcdTracks = LCDMenu("tracks", lcdOnlineMenu, loadChildMenu)
+lcdTracks.addItem(LCDMenu("backup tracks", lcdTracks, copy_tracks))
+lcdTracks.addItem(LCDMenu("upload tracks", lcdTracks, upload_tracks))
+lcdOnlineMenu.addItem(lcdTracks)
+
+lcdPresets = LCDMenu("drum presets", lcdOnlineMenu, loadChildMenu)
+lcdPresets.addItem(LCDMenu("backup all", lcdPresets, backupDrumPresets))
+lcdPresets.addItem(LCDMenu("delete on OP1", lcdPresets))
+lcdPresets.addItem(LCDMenu("upload", lcdPresets))
+#lcdOnlineMenu.addItem(lcdPresets)
+
+lcdOnlineMenu.addItem(LCDMenu("show ip", lcdOnlineMenu, showip))
+
+lcdOfflineMenu = LCDMenu('W00t! no OP1?')
+lcdOfflineMenu.addItem(LCDMenu("show ip", lcdOfflineMenu, showip))
 
 init()
 
 while True:
-
-	if op1_is_avaliable() == False:
-		clearprint("Waiting for OP1\n" + getip())
+	if op1_is_avaliable() == False and is_op1_available == True:
 		is_op1_available = False
-		sleep(2)
-		continue
+		setLCDMenu(lcdOfflineMenu)
 	
-	if (op1_is_avaliable() and is_op1_available == False):
+	if op1_is_avaliable() and is_op1_available == False:
 		is_op1_available = True
 		backup_position = get_next_backup()
-		menulcd()
+		setLCDMenu(lcdOnlineMenu)
 
 	if (buttonsactive == False): # if active then menusystem is freezed
 		continue
@@ -209,6 +256,9 @@ while True:
 			if b == lcd.UP:
 				LCDMenu.up()
 				menulcd()
+
+			if b == lcd.DOWN:
+				LCDMenu.runFunc()			
 
 			if b == lcd.RIGHT:
 				LCDMenu.next()

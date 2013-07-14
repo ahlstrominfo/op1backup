@@ -36,8 +36,6 @@ class LCDMenu:
 		self.children = []
 		self.func = func
 		self.args = args
-		if (LCDMenu.lcdMenu is None):
-			LCDMenu.lcdMenu = self
 
 	def addItem(self, aLCDMenu):
 		self.children.append(aLCDMenu)
