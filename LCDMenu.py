@@ -29,15 +29,16 @@ class LCDMenu:
 			LCDMenu.lcdMenu = lcd.parent
 
 
-	def __init__(self, header, parent = None, func = None, args = []):
+	def __init__(self, header, func = None, args = []):
 		self.position = 0
 		self.header = header
-		self.parent = parent
+		self.parent = None
 		self.children = []
 		self.func = func
 		self.args = args
 
 	def addItem(self, aLCDMenu):
+		aLCDMenu.parent = self
 		self.children.append(aLCDMenu)
 
 	def currentItem(self):

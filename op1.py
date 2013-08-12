@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import platform, os, os.path, shutil, syslog, sys
+import platform, os, os.path, shutil, syslog, sys, subprocess, json
 
 from time import sleep
 from Adafruit_CharLCDPlate import Adafruit_CharLCDPlate
@@ -22,6 +22,11 @@ backup_position = ""
 def logger(msg):
 	syslog.syslog(msg)
 	print(msg)
+
+def load_radio():
+	os.system("sudo modprobe snd_bcm2835")
+	os.system("sudo mpd")
+	os.system("sudo mpc clear")
 
 def run_cmd(cmd):
 		p = Popen(cmd, shell=True, stdout=PIPE)
@@ -53,6 +58,24 @@ def showip():
 	clearprint(str)
 	sleep(3)
 	resetmenu();
+
+def start_radio():
+	parent = LCDMenu.lcdMenu.currentItem();
+	os.system("sudo mpc clear")
+	os.system("sudo mpc insert " + parent.args[0])
+	os.system("sudo mpc play")
+	resetmenu()
+
+def radio():
+	parent = LCDMenu.lcdMenu.currentItem();
+	parent.children = []
+	json_data=open('radio.json')
+	data = json.load(json_data)
+	for items in data.items():
+		parent.addItem(LCDMenu(items[0], start_radio, [items[1]]))
+
+	LCDMenu.lcdMenu = parent;
+	menulcd()
 
 def op1_is_avaliable():
 	return os.path.exists('/media/usb0/album/')
@@ -153,7 +176,7 @@ def upload_tracks():
 	for dirs in sorted(os.listdir(root)):
 		backup_path = os.path.join(root, dirs)
 		if (os.path.exists(backup_path+'/tape')):
-			parent.addItem(LCDMenu(dirs, parent, upload_track, [backup_path+'/tape']))
+			parent.addItem(LCDMenu(dirs, upload_track, [backup_path+'/tape']))
 
 	parent.position = len(parent.children) - 1
 	LCDMenu.lcdMenu = parent;
@@ -162,13 +185,22 @@ def upload_tracks():
 def backupDrumPresets():
 	global op1
 	for root, dirs, files in os.walk(op1+'/drum/'):
-		#files = [os.path.join(root, f) for f in files]
-		print "root"
-		print(root)
+		files = [os.path.join(root, f) for f in files]
+		for fname in files:
+			if fname[-3:] != "aif":
+				continue
+			cpdirs = fname.replace(op1+"/", '').split("/")[:-1]
+			for cpdir in cpdirs:
+
+				print cpdirs
+			#print fname.replace(op1+"/", '')
+			#print fname[-3:]
+		#print "root"
+		#print(root)
 		#print "dirs"
 		#print(dirs)
 		#print "\n"
-		print(files)
+		#print(files)
 		#for fname in files:
 			#print fname
 
@@ -194,43 +226,48 @@ def resetmenu(runmenu = True):
 		menulcd()
 
 def init():
-	global is_op1_available
+	global is_op1_available, backup_position
 	lcd.backlight(lcd.TEAL)
+	load_radio()
 	clearprint("OP1 Backup 2000!!!\nVersion Three")
 	sleep(2)
 	if op1_is_avaliable():
 		is_op1_available = True
+		backup_position = get_next_backup()
 		setLCDMenu(lcdOnlineMenu)
 	else: 
 		is_op1_available = False
 		setLCDMenu(lcdOfflineMenu)
 
 
-lcdOnlineMenu = LCDMenu('OP1 Backup 2000!!!')
+lcdOnlineMenu = LCDMenu('OP1 Backup 2000!')
 
-lcdAlbum = LCDMenu("album", lcdOnlineMenu, loadChildMenu)
-lcdAlbum.addItem(LCDMenu("backup album a", lcdAlbum, copy_album_a))
-lcdAlbum.addItem(LCDMenu("backup album b", lcdAlbum, copy_album_b))
-lcdAlbum.addItem(LCDMenu("backup albums", lcdAlbum, copy_album))
+lcdAlbum = LCDMenu("album", loadChildMenu)
+lcdAlbum.addItem(LCDMenu("backup album a", copy_album_a))
+lcdAlbum.addItem(LCDMenu("backup album b", copy_album_b))
+lcdAlbum.addItem(LCDMenu("backup albums", copy_album))
 lcdOnlineMenu.addItem(lcdAlbum)
 
-lcdTracks = LCDMenu("tracks", lcdOnlineMenu, loadChildMenu)
-lcdTracks.addItem(LCDMenu("backup tracks", lcdTracks, copy_tracks))
-lcdTracks.addItem(LCDMenu("upload tracks", lcdTracks, upload_tracks))
+lcdTracks = LCDMenu("tracks", loadChildMenu)
+lcdTracks.addItem(LCDMenu("backup tracks", copy_tracks))
+lcdTracks.addItem(LCDMenu("upload tracks", upload_tracks))
 lcdOnlineMenu.addItem(lcdTracks)
 
-lcdPresets = LCDMenu("drum presets", lcdOnlineMenu, loadChildMenu)
-lcdPresets.addItem(LCDMenu("backup all", lcdPresets, backupDrumPresets))
+lcdPresets = LCDMenu("drum presets", loadChildMenu)
+lcdPresets.addItem(LCDMenu("backup all", backupDrumPresets))
 lcdPresets.addItem(LCDMenu("delete on OP1", lcdPresets))
 lcdPresets.addItem(LCDMenu("upload", lcdPresets))
 #lcdOnlineMenu.addItem(lcdPresets)
 
-lcdOnlineMenu.addItem(LCDMenu("show ip", lcdOnlineMenu, showip))
+lcdOnlineMenu.addItem(LCDMenu("show ip", showip))
 
 lcdOfflineMenu = LCDMenu('W00t! no OP1?')
-lcdOfflineMenu.addItem(LCDMenu("show ip", lcdOfflineMenu, showip))
+lcdOfflineMenu.addItem(LCDMenu("show ip", showip))
+lcdOfflineMenu.addItem(LCDMenu("radio", radio))
 
 init()
+
+#backupDrumPresets()
 
 while True:
 	if op1_is_avaliable() == False and is_op1_available == True:
