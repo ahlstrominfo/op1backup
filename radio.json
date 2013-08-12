@@ -1,0 +1,8 @@
+{
+	"P1": "http://http-live.sr.se/p1-mp3-192",
+	"P2": "http://http-live.sr.se/p2-mp3-192",
+	"P3": "http://http-live.sr.se/p3-mp3-192",
+	"P4": "http://http-live.sr.se/p4stockholm-mp3-192",
+	"Lugna Favvo": "http://stream-ice.mtgradio.com:8080/stat_lugna_favoriter",
+	"Rix FM": "http://stream-ice.mtgradio.com:8080/stat_rix_fm"
+}
