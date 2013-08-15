@@ -34,7 +34,7 @@ mkdir /op1-backup
 chmod a+w /op1-backup
 chmod a+r /op1-backup
 
-cp op1lcd.sh /etc/init.d/op1lcd
+cp op1d.sh /etc/init.d/op1lcd
 chmod a+x /etc/init.d/op1lcd
 update-rc.d op1lcd defaults
 
