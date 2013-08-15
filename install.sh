@@ -38,4 +38,7 @@ cp conf/apache.conf /etc/apache2/sites-available/default
 /etc/init.d/apache2 stop
 /etc/init.d/apache2 start
 
+
+cp conf/modules.conf /etc/modules
+
 reboot
