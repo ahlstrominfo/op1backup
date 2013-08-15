@@ -11,12 +11,7 @@
 # apt-get -y autoremove
 # apt-get -y update
 rm -rf /home/pi/python_games
-apt-get -y install python-smbus
-apt-get -y install i2c-tools
-apt-get -y install usbmount
-apt-get -y install sox
-apt-get -y install apache2
-apt-get -y install php5
+apt-get -y install python-smbus i2c-tools usbmount sox apache2 php5
 
 cp conf/raspi-blacklist.conf /etc/modprobe.d/raspi-blacklist.conf
 
