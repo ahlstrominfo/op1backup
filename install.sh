@@ -1,26 +1,22 @@
-apt-get -y remove --purge xserver-common
-apt-get -y remove --purge x11-common
-apt-get -y remove --purge gnome-icon-theme
-apt-get -y remove --purge gnome-themes-standard
-apt-get -y remove --purge penguinspuzzle
-apt-get -y remove --purge desktop-base
-apt-get -y remove --purge desktop-file-utils
-apt-get -y remove --purge hicolor-icon-theme
-apt-get -y remove --purge raspberrypi-artwork
-apt-get -y remove --purge omxplayer
-apt-get -y autoremove
-apt-get -y update
+# apt-get -y remove --purge xserver-common
+# apt-get -y remove --purge x11-common
+# apt-get -y remove --purge gnome-icon-theme
+# apt-get -y remove --purge gnome-themes-standard
+# apt-get -y remove --purge penguinspuzzle
+# apt-get -y remove --purge desktop-base
+# apt-get -y remove --purge desktop-file-utils
+# apt-get -y remove --purge hicolor-icon-theme
+# apt-get -y remove --purge raspberrypi-artwork
+# apt-get -y remove --purge omxplayer
+# apt-get -y autoremove
+# apt-get -y update
 rm -rf /home/pi/python_games
-apt-get install python-smbus
+apt-get -y install python-smbus
 apt-get -y install i2c-tools
 apt-get -y install usbmount
 apt-get -y install sox
 apt-get -y install apache2
 apt-get -y install php5
-
-sudo chmod a+w /etc/modprobe.d/raspi-blacklist.conf
-
-echo '' > /etc/modprobe.d/raspi-blacklist.conf
 
 cp conf/apache.conf /etc/apache2/sites-available/default
 /etc/init.d/apache2 stop
