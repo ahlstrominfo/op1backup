@@ -18,10 +18,6 @@ apt-get -y install sox
 apt-get -y install apache2
 apt-get -y install php5
 
-cp conf/apache.conf /etc/apache2/sites-available/default
-/etc/init.d/apache2 stop
-/etc/init.d/apache2 start
-
 cp conf/raspi-blacklist.conf /etc/modprobe.d/raspi-blacklist.conf
 
 mkdir /op1
@@ -37,5 +33,9 @@ chmod a+r /op1-backup
 cp op1d.sh /etc/init.d/op1lcd
 chmod a+x /etc/init.d/op1lcd
 update-rc.d op1lcd defaults
+
+cp conf/apache.conf /etc/apache2/sites-available/default
+/etc/init.d/apache2 stop
+/etc/init.d/apache2 start
 
 reboot
